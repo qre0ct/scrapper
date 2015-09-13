@@ -20,6 +20,7 @@ from operator import itemgetter # for sorting the list of lists rowOfDataInDb as
 import MySQLdb as mdb # for DB interactions
 import time # for strftime to convert the normalized time to a format that can be inserted in a datatime column in MySql
 from warnings import filterwarnings # to supress MySql "warnings"
+import smtplib # for mail notifications whenever there is a new entry in the db
 ##############################################################################################################################################
 
 ##############################################################################################################################################
@@ -28,6 +29,11 @@ class ScrapeHelper():
 	
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 	def __init__(self):
+		self.CONFIG_FILE = 'config.cfg'
+		self.moreConfig = ConfigObj(self.CONFIG_FILE)
+		self.searchKeyWords = self.moreConfig['keyword']['search_term']
+		currentlySearchingFor = None
+
 		self.timeStampHolder = []
 		# initializing the first 3 indices of the list with none
 		self.timeStampHolder.append(None)
@@ -118,7 +124,7 @@ class PastebinScrape(ScrapeHelper):
 		self.uniqueToken = "paste_box_line2"
 		self.timeStampSection = "div.paste_box_line2 span"
 		self.timeStampContainer = "title"
-		self.mainUrl = 'https://www.googleapis.com/customsearch/v1element?key=AIzaSyCVAXiUzRYsML1Pv6RwSG1gunmMikTzQqY&rsz=filtered_cse&num=10&hl=en&prettyPrint=false&source=gcsc&gss=.com&sig=56f70d816baa48bdfe9284ebc883ad41&cx=013305635491195529773:0ufpuq-fpt0&q=olacabs&sort=&googlehost=www.google.com&callback=google.search.Search.apiary3563'
+		self.mainUrl = 'https://www.googleapis.com/customsearch/v1element?key=AIzaSyCVAXiUzRYsML1Pv6RwSG1gunmMikTzQqY&rsz=filtered_cse&num=10&hl=en&prettyPrint=false&source=gcsc&gss=.com&sig=56f70d816baa48bdfe9284ebc883ad41&cx=013305635491195529773:0ufpuq-fpt0&q=' + helperObject.currentlySearchingFor +'&sort=&googlehost=www.google.com&callback=google.search.Search.apiary3563'
 		helperObject.timeStampHolder[0] = self.uniqueToken
 		helperObject.timeStampHolder[1] = self.timeStampSection
 		helperObject.timeStampHolder[2] = self.timeStampContainer
@@ -167,7 +173,7 @@ class PastebinScrape(ScrapeHelper):
 					counter = counter + 1
 
 			else:
-				print "\n\nNOT DONE"
+				print "\nBooo...! the lad's missing !"
 		else:
 			print response.status_code
 			print "\nNo response received\n\n"
@@ -185,7 +191,7 @@ class PastieGoogleScrape(ScrapeHelper):
 		self.uniqueToken = "paste_date"
 		self.timeStampSection = "span.typo_date"
 		self.timeStampContainer = "title"
-		self.mainUrl = 'https://google.co.in/search?q=ola+cabs+site:pastie.org&gws_rd=cr,ssl&ei=pfvvVerUA4aJuATquqXABA'
+		self.mainUrl = 'https://google.co.in/search?q=' + helperObject.currentlySearchingFor +'+site:pastie.org'
 		helperObject.timeStampHolder[0] = self.uniqueToken
 		helperObject.timeStampHolder[1] = self.timeStampSection
 		helperObject.timeStampHolder[2] = self.timeStampContainer
@@ -216,7 +222,7 @@ class PastieGoogleScrape(ScrapeHelper):
 					for i in elms:
 						link = i.attrs["href"]
 						ts = helperObject.extractPostTime(link)
-						# We directly have the link to the post in pastie and Google. So our actual post param hods just the link. 
+						# We directly have the link to the post in pastie and Google. So our actual post param holds just the link. 
 						# Hitting this link in the browser would take you to the actual post itself.
 						self.actualPost = str(link)
 						self.postTime = str(ts)
@@ -226,7 +232,7 @@ class PastieGoogleScrape(ScrapeHelper):
 					print "\nCould not make the soup !!"
 
 			else:
-				print "\n\nNOT DONE"
+				print "\nBooo...! the lad's missing !"
 		else:
 			print response.status_code
 			print "\nNo response received\n\n"
@@ -246,16 +252,18 @@ class RedditScrape(ScrapeHelper):
 		self.domain = "reddit"
 		self.actualPost = None
 		self.postTime = None
+		self.resultsFound = False
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 	# method that actually scrapes Reddit
 	def scrapeIt(self, helperObject):
 		r = praw.Reddit(user_agent = self.userAgent)
-		submissions = r.search("ola cabs", limit=10)
+		submissions = r.search(helperObject.currentlySearchingFor, limit=10)
 		for x in submissions:
 			# We directly have the link to the post in Reddit. So our actual post param hods just the link. 
 			# Hitting this link in the browser would take you to the actual post itself.
+			self.resultsFound = True
 			self.actualPost = str(x.short_link)
 			time = x.created
 			ts = datetime.datetime.fromtimestamp(time)
@@ -263,6 +271,9 @@ class RedditScrape(ScrapeHelper):
 			message = str(x) + " & the link is " + self.actualPost + " at " + self.postTime
 			print message
 			helperObject.prepareDbData(self.domain, self.actualPost, self.postTime)
+		
+		if not self.resultsFound:
+			print "\nBooo...! the lad's missing !"
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 ##############################################################################################################################################
 
@@ -286,6 +297,7 @@ class TwitterScrape(ScrapeHelper):
 		self.domain = "twitter"
 		self.actualPost = None
 		self.postTime = None
+		self.resultsFound = False
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 
 	# ----------------------------------------------------------------------------------------------------------------------------------------
@@ -293,16 +305,21 @@ class TwitterScrape(ScrapeHelper):
 	def scrapeIt(self, helperObject):
 		try:
 			tso = TwitterSearchOrder() # create a TwitterSearchOrder object
-			tso.set_keywords(['deepdevops']) # let's define all words we would like to have a look for
+			tso.set_keywords([helperObject.currentlySearchingFor]) # let's define all words we would like to have a look for
 			tso.set_include_entities(False) # and don't give us all those entity information
 			
 			for tweet in self.ts.search_tweets_iterable(tso):
 				# We directly have the link to the Tweet itself. So our actual post param hods just the link. 
 				# Hitting this link in the browser would take you to the actual tweet itself.
+				self.resultsFound = True
 				self.actualPost = "https://twitter.com/statuses/" + str(tweet['id'])
 				self.postTime = str(tweet['created_at'].encode("utf-8"))
 				print "@" + str((tweet['user']['screen_name']).encode("utf-8")) + " tweeted " + str(tweet['text'].encode("utf-8")) + "and the time was " + self.postTime + " and the id of the tweet is " + self.actualPost
 				helperObject.prepareDbData(self.domain, self.actualPost, self.postTime)
+			
+			if not self.resultsFound:
+				print "\nBooo...! the lad's missing !"
+			
 			print "\n\n"
 		
 		except TwitterSearchException as e: # take care of all those ugly errors if there are some
@@ -322,9 +339,9 @@ class DataAccessObject(ScrapeHelper):
 		filterwarnings('ignore', category = mdb.Warning)
 		self.con = None
 		self.cur = None
-		self.dbName = 'scrapperDb'
-		self.dbUser = 'scrapperScript'
-		self.dbPass = '5cr4p3r'
+		self.dbName = helperObject.moreConfig['dbAccess']['db']
+		self.dbUser = helperObject.moreConfig['dbAccess']['username']
+		self.dbPass = helperObject.moreConfig['dbAccess']['password']
 		createTableQry = "CREATE TABLE IF NOT EXISTS scraped_data(searched_for VARCHAR(100), searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, search_result VARCHAR(250), posted_at DATETIME, search_source VARCHAR(100), search_hash CHAR(40), PRIMARY KEY (search_hash))"
 
 		try:
@@ -352,7 +369,7 @@ class DataAccessObject(ScrapeHelper):
 		selectHashQry = "SELECT search_hash FROM scraped_data"
 		existingHashesInDb = []
 		insertValues = []
-		insertValues.append("Ola")
+		insertValues.append(helperObject.currentlySearchingFor)
 		insertValues.append(None)
 		insertValues.append(None)
 		insertValues.append(None)
@@ -387,7 +404,7 @@ class DataAccessObject(ScrapeHelper):
 
 				else:
 					# that is there was no hashes found. This is the first run of the script. So just pump in all the results in the db
-					print "Onboarding booties... !"
+					print "Loading booties... !"
 					self.cur.execute(insertValueQry,(insertValues[0], insertValues[1], insertValues[2], mySqlDateTimeFormattedPostedAt, insertValues[4]))
 					self.con.commit()
 
@@ -400,34 +417,70 @@ class DataAccessObject(ScrapeHelper):
 		finally:
 			if self.con:
 				self.con.close()
+	# ----------------------------------------------------------------------------------------------------------------------------------------
+##############################################################################################################################################
 
+
+##############################################################################################################################################
+# This class handles all the mailing functionality
+class AlertMailer():
+	
+	# ----------------------------------------------------------------------------------------------------------------------------------------
+	# initializing the mailer. For mailer to function you may need to do some changes to your gmail settings itself. Checkout 
+	# https://support.google.com/accounts/answer/6010255 while logged into your gmail account in the browser and follow the 
+	# steps. This methos is incomplete and not tested in integration with khabri.py yet.
+	def __init__(self):
+		gmail_user = user
+		gmail_pwd = pwd
+		FROM = user
+		TO = recipient if type(recipient) is list else [recipient]
+		SUBJECT = subject
+		TEXT = body
+
+		# Prepare actual message
+		message = """\From: %s\nTo: %s\nSubject: %s\n\n%s
+		""" % (FROM, ", ".join(TO), SUBJECT, TEXT)
+		try:
+			server = smtplib.SMTP("smtp.gmail.com", 587)
+			server.ehlo()
+			server.starttls()
+			server.login(gmail_user, gmail_pwd)
+			server.sendmail(FROM, TO, message)
+			server.close()
+			print 'successfully sent the mail'
+		except:
+			print "failed to send mail"
+	# ----------------------------------------------------------------------------------------------------------------------------------------
 ##############################################################################################################################################
 
 
 ##############################################################################################################################################
 if __name__ == "__main__":
 
-	print "\n Scrapping Pastebin ... "
 	helperObj = ScrapeHelper()
-	pastebinObj = PastebinScrape(helperObj)
-	pastebinObj.scrapeIt(helperObj)
+	for searchTerm in helperObj.searchKeyWords:
+		helperObj.currentlySearchingFor = searchTerm
+		
+		print "\n Scrapping Pastebin ... "
+		pastebinObj = PastebinScrape(helperObj)
+		pastebinObj.scrapeIt(helperObj)
 
-	print "\n Scrapping Pastie and Google ... "
-	pastieGoogleObj = PastieGoogleScrape(helperObj)
-	pastieGoogleObj.scrapeIt(helperObj)
+		print "\n Scrapping Pastie and Google ... "
+		pastieGoogleObj = PastieGoogleScrape(helperObj)
+		pastieGoogleObj.scrapeIt(helperObj)
 
-	print "\n Scrapping Reddit ... "
-	redditObj = RedditScrape(helperObj)
-	redditObj.scrapeIt(helperObj)
+		print "\n Scrapping Reddit ... "
+		redditObj = RedditScrape(helperObj)
+		redditObj.scrapeIt(helperObj)
 
-	print "\n Scrapping Twitter ... "
-	twitterObj = TwitterScrape(helperObj)
-	twitterObj.scrapeIt(helperObj)
+		print "\n Scrapping Twitter ... "
+		twitterObj = TwitterScrape(helperObj)
+		twitterObj.scrapeIt(helperObj)
 
-	#helperObj.displayAllRows() # uncomment if you need to see each of the records being pushed into the db
+		#helperObj.displayAllRows() # uncomment if you need to see each of the records being pushed into the db
 
-	print "\n Talking to the storage ..."
-	dao = DataAccessObject(helperObj)
-	dao.addNewResultsToDb(helperObj)
-	print "\n All aboard !"
+		print "\n Talking to the storage ..."
+		dao = DataAccessObject(helperObj)
+		dao.addNewResultsToDb(helperObj)
+		print "\n All aboard !"
 ##############################################################################################################################################
