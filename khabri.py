@@ -17,6 +17,8 @@ import praw # reddit wrapper
 from TwitterSearch import * # twitter wrapper
 import hashlib # for hash calculation
 from operator import itemgetter # for sorting the list of lists rowOfDataInDb as per the time stamp which is the 2nd element is each inner list
+import MySQLdb as mdb # for DB interactions
+import time
 ##############################################################################################################################################
 
 ##############################################################################################################################################
@@ -74,6 +76,7 @@ class ScrapeHelper():
 		datetimeObj = parser.parse(postedAt)
 		normalizedPostedAt = datetimeObj.replace(tzinfo=self.utc)
 
+		# hash is being calculated on the following parameters
 		appendedValues = postedOn + thePostItself + str(normalizedPostedAt)
 		
 		# calculating the hash
@@ -87,12 +90,6 @@ class ScrapeHelper():
 		localList.append(normalizedPostedAt)
 		localList.append(checksum)
 		self.rowOfDataInDb.append(localList)
-	# ----------------------------------------------------------------------------------------------------------------------------------------
-
-	# ----------------------------------------------------------------------------------------------------------------------------------------
-	# method to connect to the database and initialize the tables etc.
-	def dbInit(self):
-		print "inside db"
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 
 	# ----------------------------------------------------------------------------------------------------------------------------------------
@@ -314,6 +311,74 @@ class TwitterScrape(ScrapeHelper):
 
 
 ##############################################################################################################################################
+# This class handles all the database interactions
+class DataAccessObject(ScrapeHelper):
+	
+	# ----------------------------------------------------------------------------------------------------------------------------------------
+	# method to connect to the database and initialize the tables etc.
+	def __init__(self, helperObject):
+		print "initializing db ..."
+		self.con = None
+		self.cur = None
+		self.dbName = 'scrapperDb'
+		self.dbUser = 'scrapperScript'
+		self.dbPass = '5cr4p3r'
+		createTableQry = "CREATE TABLE IF NOT EXISTS scraped_data(searched_for VARCHAR(100), searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, search_result VARCHAR(250), posted_at DATETIME, search_source VARCHAR(100), search_hash CHAR(40), PRIMARY KEY (search_hash))"
+
+		try:
+			self.con = mdb.connect('localhost', self.dbUser, self.dbPass, self.dbName)
+			self.cur = self.con.cursor()
+			self.cur.execute(createTableQry)
+			self.con.commit()
+
+		except mdb.Error, e:
+			if self.con:
+				self.con.rollback()
+			print "Error %d: %s" % (e.args[0],e.args[1])
+			if self.con:
+				self.con.close()
+			exit(1)
+	# ----------------------------------------------------------------------------------------------------------------------------------------
+
+	# ----------------------------------------------------------------------------------------------------------------------------------------
+	# method to insert rows in the table
+	def addNewResultsToDb(self, helperObject):
+		insertValueQry = "INSERT INTO scraped_data (searched_for, search_source, search_result, posted_at, search_hash) VALUES (%s, %s, %s, %s, %s)"
+		insertValues = []
+		insertValues.append("Ola")
+		insertValues.append(None)
+		insertValues.append(None)
+		insertValues.append(None)
+		insertValues.append(None)
+		try:
+			for aScrapedRecord in helperObject.rowOfDataInDb :
+				print aScrapedRecord
+				counter = 1
+				for eachValue in aScrapedRecord:
+					print eachValue
+					insertValues[counter] = eachValue
+					counter = counter + 1
+					
+				mySqlDateTimeFormattedPostedAt = insertValues[3].strftime('%Y-%m-%d %H:%M:%S')
+				print "Mysql formatted datetime string is " + mySqlDateTimeFormattedPostedAt
+
+				self.cur.execute(insertValueQry,(insertValues[0], insertValues[1], insertValues[2], mySqlDateTimeFormattedPostedAt, insertValues[4]))
+				self.con.commit()
+
+		except mdb.Error, e:
+			if self.con:
+				self.con.rollback()
+			print "Error %d: %s" % (e.args[0],e.args[1])
+			exit(1)
+
+		finally:
+			if self.con:
+				self.con.close()
+
+##############################################################################################################################################
+
+
+##############################################################################################################################################
 if __name__ == "__main__":
 
 	print "\n Scrapping Pastebin ... "
@@ -334,4 +399,8 @@ if __name__ == "__main__":
 	twitterObj.scrapeIt(helperObj)
 
 	helperObj.displayAllRows()
+
+	print "\n Talking to the storage ..."
+	dao = DataAccessObject(helperObj)
+	dao.addNewResultsToDb(helperObj)
 ##############################################################################################################################################
