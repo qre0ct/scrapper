@@ -124,7 +124,12 @@ class PastebinScrape(ScrapeHelper):
 		self.uniqueToken = "paste_box_line2"
 		self.timeStampSection = "div.paste_box_line2 span"
 		self.timeStampContainer = "title"
-		self.mainUrl = 'https://www.googleapis.com/customsearch/v1element?key=AIzaSyCVAXiUzRYsML1Pv6RwSG1gunmMikTzQqY&rsz=filtered_cse&num=10&hl=en&prettyPrint=false&source=gcsc&gss=.com&sig=56f70d816baa48bdfe9284ebc883ad41&cx=013305635491195529773:0ufpuq-fpt0&q=' + helperObject.currentlySearchingFor +'&sort=&googlehost=www.google.com&callback=google.search.Search.apiary3563'
+		self.searchedItem = helperObject.currentlySearchingFor
+
+		if " " in helperObject.currentlySearchingFor:
+			self.searchedItem = helperObject.currentlySearchingFor.replace(" ", "%20")
+
+		self.mainUrl = 'https://www.googleapis.com/customsearch/v1element?key=AIzaSyCVAXiUzRYsML1Pv6RwSG1gunmMikTzQqY&rsz=filtered_cse&num=10&hl=en&prettyPrint=false&source=gcsc&gss=.com&sig=56f70d816baa48bdfe9284ebc883ad41&cx=013305635491195529773:0ufpuq-fpt0&q=' + self.searchedItem +'&sort=&googlehost=www.google.com&callback=google.search.Search.apiary3563'
 		helperObject.timeStampHolder[0] = self.uniqueToken
 		helperObject.timeStampHolder[1] = self.timeStampSection
 		helperObject.timeStampHolder[2] = self.timeStampContainer
@@ -191,7 +196,12 @@ class PastieGoogleScrape(ScrapeHelper):
 		self.uniqueToken = "paste_date"
 		self.timeStampSection = "span.typo_date"
 		self.timeStampContainer = "title"
-		self.mainUrl = 'https://google.co.in/search?q=' + helperObject.currentlySearchingFor +'+site:pastie.org'
+		self.searchedItem = helperObject.currentlySearchingFor
+		
+		if " " in helperObject.currentlySearchingFor:
+			self.searchedItem = helperObject.currentlySearchingFor.replace(" ", "+")
+
+		self.mainUrl = 'https://google.co.in/search?q=' + self.searchedItem +'+site:pastie.org'
 		helperObject.timeStampHolder[0] = self.uniqueToken
 		helperObject.timeStampHolder[1] = self.timeStampSection
 		helperObject.timeStampHolder[2] = self.timeStampContainer
