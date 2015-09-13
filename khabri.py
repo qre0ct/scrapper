@@ -18,7 +18,8 @@ from TwitterSearch import * # twitter wrapper
 import hashlib # for hash calculation
 from operator import itemgetter # for sorting the list of lists rowOfDataInDb as per the time stamp which is the 2nd element is each inner list
 import MySQLdb as mdb # for DB interactions
-import time
+import time # for strftime to convert the normalized time to a format that can be inserted in a datatime column in MySql
+from warnings import filterwarnings # to supress MySql "warnings"
 ##############################################################################################################################################
 
 ##############################################################################################################################################
@@ -317,7 +318,8 @@ class DataAccessObject(ScrapeHelper):
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 	# method to connect to the database and initialize the tables etc.
 	def __init__(self, helperObject):
-		print "initializing db ..."
+		#print "initializing db ..."
+		filterwarnings('ignore', category = mdb.Warning)
 		self.con = None
 		self.cur = None
 		self.dbName = 'scrapperDb'
@@ -344,6 +346,11 @@ class DataAccessObject(ScrapeHelper):
 	# method to insert rows in the table
 	def addNewResultsToDb(self, helperObject):
 		insertValueQry = "INSERT INTO scraped_data (searched_for, search_source, search_result, posted_at, search_hash) VALUES (%s, %s, %s, %s, %s)"
+		# In order to update the db with just the new pastes, we select the search_hash column from the db and populate it in a local list. Now for 
+		# every new row to be inserted in the db, we first check if the hash of the new row to be inserted already exists in the local list. If so,
+		# we do not insert the row in the db, else we do
+		selectHashQry = "SELECT search_hash FROM scraped_data"
+		existingHashesInDb = []
 		insertValues = []
 		insertValues.append("Ola")
 		insertValues.append(None)
@@ -351,19 +358,38 @@ class DataAccessObject(ScrapeHelper):
 		insertValues.append(None)
 		insertValues.append(None)
 		try:
+			self.cur.execute(selectHashQry)
+			if (self.cur.rowcount):
+				# print "that is the result set is not empty and at least one row was found"
+				for searchHash in self.cur:
+					existingHashesInDb.append(searchHash[0]) # because searchhash is a tuple
+
 			for aScrapedRecord in helperObject.rowOfDataInDb :
-				print aScrapedRecord
+				#print aScrapedRecord
 				counter = 1
 				for eachValue in aScrapedRecord:
-					print eachValue
+					#print eachValue
 					insertValues[counter] = eachValue
 					counter = counter + 1
-					
-				mySqlDateTimeFormattedPostedAt = insertValues[3].strftime('%Y-%m-%d %H:%M:%S')
-				print "Mysql formatted datetime string is " + mySqlDateTimeFormattedPostedAt
 
-				self.cur.execute(insertValueQry,(insertValues[0], insertValues[1], insertValues[2], mySqlDateTimeFormattedPostedAt, insertValues[4]))
-				self.con.commit()
+				mySqlDateTimeFormattedPostedAt = insertValues[3].strftime('%Y-%m-%d %H:%M:%S')
+				#print "Mysql formatted datetime string is " + mySqlDateTimeFormattedPostedAt
+				if(len(existingHashesInDb)):
+					# for x in existingHashesInDb:
+					# 	print x
+					# print "that is there was hashes found earlier. So we will insert only if hash of current search does not exist in the db"
+					if(insertValues[4] not in existingHashesInDb):
+						print "NEW LAD IN TOWN... PULLING ONBOARD ! " + insertValues[4]
+						self.cur.execute(insertValueQry,(insertValues[0], insertValues[1], insertValues[2], mySqlDateTimeFormattedPostedAt, insertValues[4]))
+						self.con.commit()
+						# now each time there is a new entry in the db, the existingHashesInDb needs to be updated
+						existingHashesInDb.append(insertValues[4])
+
+				else:
+					# that is there was no hashes found. This is the first run of the script. So just pump in all the results in the db
+					print "Onboarding booties... !"
+					self.cur.execute(insertValueQry,(insertValues[0], insertValues[1], insertValues[2], mySqlDateTimeFormattedPostedAt, insertValues[4]))
+					self.con.commit()
 
 		except mdb.Error, e:
 			if self.con:
@@ -398,9 +424,10 @@ if __name__ == "__main__":
 	twitterObj = TwitterScrape(helperObj)
 	twitterObj.scrapeIt(helperObj)
 
-	helperObj.displayAllRows()
+	#helperObj.displayAllRows() # uncomment if you need to see each of the records being pushed into the db
 
 	print "\n Talking to the storage ..."
 	dao = DataAccessObject(helperObj)
 	dao.addNewResultsToDb(helperObj)
+	print "\n All aboard !"
 ##############################################################################################################################################
