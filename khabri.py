@@ -367,6 +367,9 @@ class DataAccessObject(ScrapeHelper):
 			if self.con:
 				self.con.close()
 			exit(1)
+
+		# initializing the mailer 
+		self.alerter = AlertMailer(helperObject)
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 
 	# ----------------------------------------------------------------------------------------------------------------------------------------
@@ -411,12 +414,14 @@ class DataAccessObject(ScrapeHelper):
 						self.con.commit()
 						# now each time there is a new entry in the db, the existingHashesInDb needs to be updated
 						existingHashesInDb.append(insertValues[4])
+						self.alerter.sendAlertNow("Fresh Entry ! Checkout the DB for " + insertValues[4])
 
 				else:
 					# that is there was no hashes found. This is the first run of the script. So just pump in all the results in the db
 					print "Loading booties... !"
 					self.cur.execute(insertValueQry,(insertValues[0], insertValues[1], insertValues[2], mySqlDateTimeFormattedPostedAt, insertValues[4]))
 					self.con.commit()
+					self.alerter.sendAlertNow("Fresh Entry ! Checkout the DB for " + insertValues[4])
 
 		except mdb.Error, e:
 			if self.con:
@@ -433,33 +438,40 @@ class DataAccessObject(ScrapeHelper):
 
 ##############################################################################################################################################
 # This class handles all the mailing functionality
-class AlertMailer():
+class AlertMailer(ScrapeHelper):
 	
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 	# initializing the mailer. For mailer to function you may need to do some changes to your gmail settings itself. Checkout 
 	# https://support.google.com/accounts/answer/6010255 while logged into your gmail account in the browser and follow the 
-	# steps. This methos is incomplete and not tested in integration with khabri.py yet.
-	def __init__(self):
-		gmail_user = user
-		gmail_pwd = pwd
-		FROM = user
-		TO = recipient if type(recipient) is list else [recipient]
-		SUBJECT = subject
-		TEXT = body
+	# steps. 
+	def __init__(self, helperObject):
+		self.gmail_user = helperObject.moreConfig['mailerAccess']['username']
+		self.gmail_pwd = helperObject.moreConfig['mailerAccess']['password']
+		self.FROM = self.gmail_user
+		self.recipient = helperObject.moreConfig['mailerAccess']['to']
+		self.TO = self.recipient if type(self.recipient) is list else [self.recipient]
+		self.SUBJECT = helperObject.moreConfig['mailerAccess']['subject']
+		self.TEXT = "Note: This alert was sent by a Python and not a human !!\r\n\r\n"
+	# ----------------------------------------------------------------------------------------------------------------------------------------
 
+	# ----------------------------------------------------------------------------------------------------------------------------------------
+	# method that actually sends out the mails.
+	def sendAlertNow(self, mailBody):
 		# Prepare actual message
 		message = """\From: %s\nTo: %s\nSubject: %s\n\n%s
-		""" % (FROM, ", ".join(TO), SUBJECT, TEXT)
+		""" % (self.FROM, ", ".join(self.TO), self.SUBJECT, self.TEXT + mailBody)
+		
 		try:
 			server = smtplib.SMTP("smtp.gmail.com", 587)
 			server.ehlo()
 			server.starttls()
-			server.login(gmail_user, gmail_pwd)
-			server.sendmail(FROM, TO, message)
+			server.login(self.gmail_user, self.gmail_pwd)
+			server.sendmail(self.FROM, self.TO, message)
 			server.close()
-			print 'successfully sent the mail'
+			print 'Alert !! Scoot over to your configured mail !'
+		
 		except:
-			print "failed to send mail"
+			print "Tumsay na ho pawegaa bachhwaa !!"
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 ##############################################################################################################################################
 
@@ -471,19 +483,19 @@ if __name__ == "__main__":
 	for searchTerm in helperObj.searchKeyWords:
 		helperObj.currentlySearchingFor = searchTerm
 		
-		print "\n Scrapping Pastebin ... "
+		print "\n Scrapping Pastebin for " + searchTerm + " ... "
 		pastebinObj = PastebinScrape(helperObj)
 		pastebinObj.scrapeIt(helperObj)
 
-		print "\n Scrapping Pastie and Google ... "
+		print "\n Scrapping Pastie and Google for " + searchTerm + " ... "
 		pastieGoogleObj = PastieGoogleScrape(helperObj)
 		pastieGoogleObj.scrapeIt(helperObj)
 
-		print "\n Scrapping Reddit ... "
+		print "\n Scrapping Reddit for " + searchTerm + " ... "
 		redditObj = RedditScrape(helperObj)
 		redditObj.scrapeIt(helperObj)
 
-		print "\n Scrapping Twitter ... "
+		print "\n Scrapping Twitter for " + searchTerm + " ... "
 		twitterObj = TwitterScrape(helperObj)
 		twitterObj.scrapeIt(helperObj)
 
