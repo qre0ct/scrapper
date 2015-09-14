@@ -79,9 +79,15 @@ class ScrapeHelper():
 	def prepareDbData(self, postedOn, thePostItself, postedAt):
 		localList = []
 
-		# normalize the post time to a common format
-		datetimeObj = parser.parse(postedAt)
-		normalizedPostedAt = datetimeObj.replace(tzinfo=self.utc)
+		if(postedAt != "None"):
+			# that is the result was not a Google search link
+			# normalize the post time to a common format
+			datetimeObj = parser.parse(postedAt)
+			normalizedPostedAt = datetimeObj.replace(tzinfo=self.utc)
+
+		else:
+			# That it was a Google search result
+			normalizedPostedAt = None
 
 		# hash is being calculated on the following parameters
 		appendedValues = postedOn + thePostItself + str(normalizedPostedAt)
@@ -232,6 +238,72 @@ class PastieGoogleScrape(ScrapeHelper):
 					for i in elms:
 						link = i.attrs["href"]
 						ts = helperObject.extractPostTime(link)
+						# We directly have the link to the post in pastie and Google. So our actual post param holds just the link. 
+						# Hitting this link in the browser would take you to the actual post itself.
+						self.actualPost = str(link)
+						self.postTime = str(ts)
+						print "Url is " + self.actualPost + " and it was posted at " + self.postTime
+						helperObject.prepareDbData(self.domain, self.actualPost, self.postTime)
+				else:
+					print "\nCould not make the soup !!"
+
+			else:
+				print "\nBooo...! the lad's missing !"
+		else:
+			print response.status_code
+			print "\nNo response received\n\n"
+	# ----------------------------------------------------------------------------------------------------------------------------------------
+##############################################################################################################################################
+
+
+##############################################################################################################################################
+# This class has the logic to scrape Google for a given search term
+class GoogleScrape(ScrapeHelper):
+
+	# ----------------------------------------------------------------------------------------------------------------------------------------
+	# method that initializes takes care of what part of the response page holds the timestamp of the post
+	def __init__(self, helperObject):
+		self.uniqueToken = "paste_date"
+		self.timeStampSection = "span.typo_date"
+		self.timeStampContainer = "title"
+		self.searchedItem = helperObject.currentlySearchingFor
+		
+		if " " in helperObject.currentlySearchingFor:
+			self.searchedItem = helperObject.currentlySearchingFor.replace(" ", "+")
+
+		self.mainUrl = 'https://google.co.in/search?q=' + self.searchedItem
+		helperObject.timeStampHolder[0] = self.uniqueToken
+		helperObject.timeStampHolder[1] = self.timeStampSection
+		helperObject.timeStampHolder[2] = self.timeStampContainer
+		self.domain = "Google"
+		self.actualPost = None
+		self.postTime = None
+	# ----------------------------------------------------------------------------------------------------------------------------------------
+
+	# ----------------------------------------------------------------------------------------------------------------------------------------
+	# method that actually scrapes Pastie and Google
+	def scrapeIt(self, helperObject):
+		headers = {
+					'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:40.0) Gecko/20100101 Firefox/40.0',
+					'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+					'Connection': 'keep-alive'
+				}
+		response = requests.get(self.mainUrl, headers = headers)
+		#print response
+		if (response.status_code == 200):
+			#print response.text
+			if(response.text.find('<cite class="_Rm">') >= 0):
+				#print "\nResults FOUND!"
+				soup = BeautifulSoup(response.text)
+
+				if(soup):
+					#print "\nHot Soup Ready "
+					elms = soup.select("h3.r a")
+					for i in elms:
+						link = i.attrs["href"]
+						# In case of a Google link, we may not necessarily have a timestamp on the linked page. Hence keeping the ts = None here
+						# Corresponding to None, null would be inserted in the DB. 
+						ts = None
 						# We directly have the link to the post in pastie and Google. So our actual post param holds just the link. 
 						# Hitting this link in the browser would take you to the actual post itself.
 						self.actualPost = str(link)
@@ -402,7 +474,14 @@ class DataAccessObject(ScrapeHelper):
 					insertValues[counter] = eachValue
 					counter = counter + 1
 
-				mySqlDateTimeFormattedPostedAt = insertValues[3].strftime('%Y-%m-%d %H:%M:%S')
+				if(insertValues[3] is not None):
+					# Time conversion needed only when it is available. In case of Google link, it may not be available. So in that case it would just be None
+					# so that null would be inserted in the db in the respective column
+					mySqlDateTimeFormattedPostedAt = insertValues[3].strftime('%Y-%m-%d %H:%M:%S')
+
+				else:
+					mySqlDateTimeFormattedPostedAt = None
+
 				#print "Mysql formatted datetime string is " + mySqlDateTimeFormattedPostedAt
 				if(len(existingHashesInDb)):
 					# for x in existingHashesInDb:
@@ -481,6 +560,18 @@ class AlertMailer(ScrapeHelper):
 if __name__ == "__main__":
 
 	helperObj = ScrapeHelper()
+	# checking if there was just 1 searhc term specified, in which case we need not iterate over it, contrary to what we do in case we have a list 
+	# of search terms. We simply assign that as the currentlySearchingFor
+	if (type(helperObj.searchKeyWords) is not list ):
+		print "\nla-la-la-ing for you !! :D "
+		# converting the search term to a list, so that for searchTerm in helperObj.searchKeyWords: does not break. If not done, the search term becomes a 
+		# a single string and hence when "searchTerm in helperObj.searchKeyWords:" this happens, search term basically starts picking each character from 
+		# the string.
+		tempList = []
+		tempList.append(helperObj.searchKeyWords)
+		helperObj.searchKeyWords = []
+		helperObj.searchKeyWords.append(tempList[0])
+
 	for searchTerm in helperObj.searchKeyWords:
 		helperObj.currentlySearchingFor = searchTerm
 		
@@ -488,9 +579,13 @@ if __name__ == "__main__":
 		pastebinObj = PastebinScrape(helperObj)
 		pastebinObj.scrapeIt(helperObj)
 
-		print "\n Scrapping Pastie and Google for " + searchTerm + " ... "
+		print "\n Scrapping Pastie for " + searchTerm + " ... "
 		pastieGoogleObj = PastieGoogleScrape(helperObj)
 		pastieGoogleObj.scrapeIt(helperObj)
+
+		print "\n Scrapping Google for " + searchTerm + " ... "
+		googleObj = GoogleScrape(helperObj)
+		googleObj.scrapeIt(helperObj)
 
 		print "\n Scrapping Reddit for " + searchTerm + " ... "
 		redditObj = RedditScrape(helperObj)
