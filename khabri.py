@@ -471,7 +471,8 @@ class AlertMailer(ScrapeHelper):
 			print 'Alert !! Scoot over to your configured mail !'
 		
 		except:
-			print "Tumsay na ho pawegaa bachhwaa !!"
+			print "Tumsay na ho pawegaa bachhwaa !!\n"
+			print "For mailer to function you may need to do some changes to your gmail settings itself. Checkout https://support.google.com/accounts/answer/6010255 while logged into your gmail account in the browser and follow the steps.\n SCRIPTING GODS BE WITH YOU !! "
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 ##############################################################################################################################################
 
