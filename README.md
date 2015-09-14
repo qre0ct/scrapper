@@ -14,3 +14,22 @@ In a future release however, focus would be on <br>
 Ensure that the required python modules are installed and the required config.cfg is in place before running the script. 
 The script may have some fancy debug messages --> that was to just kill the boring debug messages ! 
 
+The config file has to be of the form : <br>
+[display] # this section is not really implemented as of now. <br>
+debug=false<br>
+<br>
+[keyword]<br>
+search_term = comma separated search terms<br>
+<br>
+[dbAccess]<br>
+db = dbName<br>
+username = dbUser<br>
+password = dbPassword<br>
+<br>
+[mailerAccess]<br>
+username = gmail account from which you want to send mails<br>
+password = password for the above (IMPORTANT - the config file should be stored securely)<br>
+to = email id/(in case of ids it's a comma separated list)  where the alerts should be sent<br>
+subject = Trust me over time these alerts (like anything else in this universe) would get boring. So you would want to have the subject as something that at least tickles you...atleast !<br>
+<br>
+Save the file as config.cfg in the same dir as khabri.py<br>
