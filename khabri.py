@@ -371,10 +371,10 @@ class TwitterScrape(ScrapeHelper):
 	def __init__(self, helperObject):
 		# it's about time to create a TwitterSearch object with our secret tokens
 		self.ts = TwitterSearch(
-			consumer_key = 'RLXY0g7xiLLs0zbU21QQd1neH',
-			consumer_secret = 'c8NgW92oYjyOZfyNwRQjXSkasF0Cv3wGIO4dsjl2RyOCYZ3HzT',
-			access_token = '3433982414-6p8ccwItkWO2GF90YiUIS30o6U3Fy10T50TouRB',
-			access_token_secret = 'ZDY7QbfBZ1uvLjzjlF7A4zZxMSNgmoJo6qsbuuhlPAAPM'
+			consumer_key = helperObject.moreConfig['apiTokens']['twitter_consumer_key'],
+			consumer_secret = helperObject.moreConfig['apiTokens']['twitter_consumer_secret'],
+			access_token = helperObject.moreConfig['apiTokens']['twitter_access_token'],
+			access_token_secret = helperObject.moreConfig['apiTokens']['twitter_access_token_secret']
 		 )
 		self.domain = "twitter"
 		self.actualPost = None
@@ -575,29 +575,29 @@ if __name__ == "__main__":
 	for searchTerm in helperObj.searchKeyWords:
 		helperObj.currentlySearchingFor = searchTerm
 		
-		print "\n Scrapping Pastebin for " + searchTerm + " ... "
+		print "\n[+] Scrapping Pastebin for " + searchTerm + " ... "
 		pastebinObj = PastebinScrape(helperObj)
 		pastebinObj.scrapeIt(helperObj)
 
-		print "\n Scrapping Pastie for " + searchTerm + " ... "
+		print "\n[+] Scrapping Pastie for " + searchTerm + " ... "
 		pastieGoogleObj = PastieGoogleScrape(helperObj)
 		pastieGoogleObj.scrapeIt(helperObj)
 
-		print "\n Scrapping Google for " + searchTerm + " ... "
+		print "\n[+] Scrapping Google for " + searchTerm + " ... "
 		googleObj = GoogleScrape(helperObj)
 		googleObj.scrapeIt(helperObj)
 
-		print "\n Scrapping Reddit for " + searchTerm + " ... "
+		print "\n[+] Scrapping Reddit for " + searchTerm + " ... "
 		redditObj = RedditScrape(helperObj)
 		redditObj.scrapeIt(helperObj)
 
-		print "\n Scrapping Twitter for " + searchTerm + " ... "
+		print "\n[+] Scrapping Twitter for " + searchTerm + " ... "
 		twitterObj = TwitterScrape(helperObj)
 		twitterObj.scrapeIt(helperObj)
 
 		#helperObj.displayAllRows() # uncomment if you need to see each of the records being pushed into the db
 
-		print "\n Talking to the storage ..."
+		print "\n[+] Talking to the storage ..."
 		dao = DataAccessObject(helperObj)
 		dao.addNewResultsToDb(helperObj)
 		print "\n All aboard !"
