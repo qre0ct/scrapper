@@ -32,4 +32,10 @@ password = password for the above (IMPORTANT - the config file should be stored 
 to = email id/(in case of ids it's a comma separated list)  where the alerts should be sent<br>
 subject = Trust me over time these alerts (like anything else in this universe) would get boring. So you would want to have the subject as something that at least tickles you...atleast !<br>
 <br>
+[apiTokens] # holds the respective token for different services. For now since it's only twitter keys needed for twitter, it contains details about twitter alone.
+twitter_consumer_key = 
+twitter_consumer_secret = 
+twitter_access_token = 
+twitter_access_token_secret = 
+
 Save the file as config.cfg in the same dir as khabri.py<br>
