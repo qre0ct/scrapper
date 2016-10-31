@@ -1,4 +1,4 @@
-# scrapper
+# Scrapper
 Script to scrape from different social media platforms depending on the search word/s specified by the user in the config file. The results are stored in a MySql db as well. Currently the supported platforms are Pastebin, Pastie, 
 Google, Reddit, Twitter. The results are obtained either through a direct search query on the platform or through 
 a REST API exposed by the platform - NOT AN ELEGANT WAY OF DOING IT ! 
