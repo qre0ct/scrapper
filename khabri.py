@@ -330,23 +330,25 @@ class RedditScrape(ScrapeHelper):
 	# for reddit we are using the PRAW Python Module. To do a search a unique user agent is required. This is what (and if required other
 	# things in the future) we are initializing here. 
 	def __init__(self, helperObject):
-		self.userAgent = 'olaCabs_social_monitor'
+		self.userAgent = 'goJek_social_monitor'
 		self.domain = "reddit"
 		self.actualPost = None
 		self.postTime = None
 		self.resultsFound = False
+		self.client_id = helperObject.moreConfig['apiTokens']['reddit_client_id']
+		self.client_secret = helperObject.moreConfig['apiTokens']['reddit_client_secret']
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 
 	# ----------------------------------------------------------------------------------------------------------------------------------------
 	# method that actually scrapes Reddit
 	def scrapeIt(self, helperObject):
-		r = praw.Reddit(user_agent = self.userAgent)
-		submissions = r.search(helperObject.currentlySearchingFor, limit=10)
+		r = praw.Reddit(client_id = self.client_id, client_secret=self.client_secret, user_agent = self.userAgent)
+		submissions = r.subreddit('all').search(helperObject.currentlySearchingFor, limit=10)
 		for x in submissions:
 			# We directly have the link to the post in Reddit. So our actual post param hods just the link. 
 			# Hitting this link in the browser would take you to the actual post itself.
 			self.resultsFound = True
-			self.actualPost = str(x.short_link)
+			self.actualPost = str(x.shortlink)
 			time = x.created
 			ts = datetime.datetime.fromtimestamp(time)
 			self.postTime = str(ts)

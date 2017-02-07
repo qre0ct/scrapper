@@ -1,0 +1,7 @@
+requests==2.12.3
+TwitterSearch==1.0.1
+beautifulsoup4==4.5.1
+configobj==5.0.6
+python_dateutil==2.6.0
+praw==4.0.0
+pytz==2016.10
