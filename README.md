@@ -10,6 +10,9 @@ In a future release however, focus would be on <br>
    statistical data if possible. <br>
 4. And having a more efficient alerting mechanism than mails (if possible)<br>
 
+<b> Instructions to install the dependencies </b></br>
+pip install -U -r requirements.txt
+
 <b>The main entry point to the script is khabri.py</b><br>
 Ensure that the required python modules are installed and the required config.cfg is in place before running the script. 
 The script may have some fancy debug messages --> that was to just kill the boring debug messages ! 
