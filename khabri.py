@@ -56,7 +56,7 @@ class ScrapeHelper():
 			#print response.text
 			if(response.text.find(self.timeStampHolder[0])):
 				#print "\nTime Stamp Found !"
-				soup = BeautifulSoup(response.text)
+				soup = BeautifulSoup(response.text, 'html.parser')
 
 				if(soup):
 					#print "\nHot Soup Ready "
@@ -230,7 +230,7 @@ class PastieGoogleScrape(ScrapeHelper):
 			#print response.text
 			if(response.text.find('<cite class="_Rm">') >= 0):
 				#print "\nResults FOUND!"
-				soup = BeautifulSoup(response.text)
+				soup = BeautifulSoup(response.text, 'html.parser')
 
 				if(soup):
 					#print "\nHot Soup Ready "
@@ -294,7 +294,7 @@ class GoogleScrape(ScrapeHelper):
 			#print response.text
 			if(response.text.find('<cite class="_Rm">') >= 0):
 				#print "\nResults FOUND!"
-				soup = BeautifulSoup(response.text)
+				soup = BeautifulSoup(response.text, 'html.parser')
 
 				if(soup):
 					#print "\nHot Soup Ready "
