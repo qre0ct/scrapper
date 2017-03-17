@@ -502,14 +502,16 @@ class DataAccessObject(ScrapeHelper):
 						self.con.commit()
 						# now each time there is a new entry in the db, the existingHashesInDb needs to be updated
 						existingHashesInDb.append(insertValues[4])
-						self.alerter.sendAlertNow("Fresh Entry ! Checkout the DB for " + insertValues[4] + "\n" + insertValues[0] + " was found on " + insertValues[1] + " at "  + str(insertValues[3]) + " and you may check it out on " + insertValues[2])
+						if insertValues[1] != 'twitter': # because there was a lot of twitter data coming in, leading to spamming. So turning off mails for twitter entries
+							self.alerter.sendAlertNow("Fresh Entry ! Checkout the DB for " + insertValues[4] + "\n" + insertValues[0] + " was found on " + insertValues[1] + " at "  + str(insertValues[3]) + " and you may check it out on " + insertValues[2])
 
 				else:
 					# that is there was no hashes found. This is the first run of the script. So just pump in all the results in the db
 					print "Loading booties... !"
 					self.cur.execute(insertValueQry,(insertValues[0], insertValues[1], insertValues[2], mySqlDateTimeFormattedPostedAt, insertValues[4]))
 					self.con.commit()
-					self.alerter.sendAlertNow("Fresh Entry ! Checkout the DB for " + insertValues[4] + "\n" + insertValues[0] + " was found on " + insertValues[1] + " at "  + str(insertValues[3]) + " and you may check it out on " + insertValues[2])
+					if insertValues[1] != 'twitter': # because there was a lot of twitter data coming in, leading to spamming. So turning off mails for twitter entries
+						self.alerter.sendAlertNow("Fresh Entry ! Checkout the DB for " + insertValues[4] + "\n" + insertValues[0] + " was found on " + insertValues[1] + " at "  + str(insertValues[3]) + " and you may check it out on " + insertValues[2])
 
 		except mdb.Error, e:
 			if self.con:
