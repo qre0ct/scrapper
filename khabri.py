@@ -1,6 +1,13 @@
 # Making the final integrated code that would call the scrappers for the different platforms. Trying to keep each it as modular as possible 
 # to allow extensibility in terms of addition of more platforms later. 
 
+''' Enhancements :
+1. Make it multithreaded
+2. Make it plagagabel
+3. Write plugins 
+4. Make it smarter in terms or reports... so maybe do some AI / NLP before reporting the results found
+'''
+
 __author__ = 'abhinav.chourasia'
 
 ##############################################################################################################################################
@@ -563,7 +570,8 @@ if __name__ == "__main__":
 
 	helperObj = ScrapeHelper()
 	# checking if there was just 1 searhc term specified, in which case we need not iterate over it, contrary to what we do in case we have a list 
-	# of search terms. We simply assign that as the currentlySearchingFor
+	# of search terms. We simply assign that as the currentlySearchingFor. By default if the search_term has multiple comma separated values, search_term beocmes a list 
+	# and each comma separated value a single item in the list
 	if (type(helperObj.searchKeyWords) is not list ):
 		print "\nla-la-la-ing for you !! :D "
 		# converting the search term to a list, so that for searchTerm in helperObj.searchKeyWords: does not break. If not done, the search term becomes a 
